@@ -114,3 +114,49 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+# Plots only: Project/.venv/bin/python -c "from test import plot_results; plot_results()"
+def plot_results():
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import matplotlib.dates as mdates
+    from matplotlib.ticker import MaxNLocator
+
+    # Read saved results. No PCA or clustering is rerun.
+    saved = json.loads((OUTPUT / "resultats.json").read_text())
+    columns = ["date", "threshold", "components", "k", "silhouette",
+               "min_size", "max_size", "singletons", "negative_fraction"]
+    df = pd.DataFrame(saved["meilleurs_clusters"], columns=columns)
+    df["date"] = pd.to_datetime(df["date"])
+    df = df.sort_values("date")
+
+    for threshold in THRESHOLDS:
+        rows = df[df["threshold"] == threshold]
+        fig, ax = plt.subplots(figsize=(16, 6), layout="constrained")
+        fig.set_facecolor("white")
+        ax.plot(rows["date"], rows["components"], color="#1565C0", linewidth=2,
+                marker="o", markersize=2.5, label="Selected PCA components")
+        ax.plot(rows["date"], rows["k"], color="#D55E00", linewidth=1.8,
+                marker="o", markersize=2.5, label="Best k (highest silhouette)")
+        ax.set_title(f"PCA components and best Ward k — threshold {threshold:g} pp",
+                     fontsize=18, fontweight="bold", pad=16)
+        ax.set_xlabel("Date", fontsize=13)
+        ax.set_ylabel("Number of components / clusters", fontsize=13)
+        ax.xaxis.set_major_locator(mdates.YearLocator(2))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+        ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+        ax.set_ylim(0, max(rows["components"].max(), rows["k"].max()) + 2)
+        ax.tick_params(labelsize=11)
+        ax.grid(axis="y", color="#DDE3EA", linewidth=0.8)
+        ax.spines[["top", "right"]].set_visible(False)
+        ax.legend(loc="upper left", ncol=2, fontsize=12, frameon=False)
+        filename = OUTPUT / f"pca_components_and_k_{threshold:g}.png"
+        fig.savefig(filename, dpi=180)
+        plt.close(fig)
+        print(f"Plot: {filename}")
+
+
+if __name__ == "__main__":
+    plot_results()
